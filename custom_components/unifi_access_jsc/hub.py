@@ -44,7 +44,7 @@ class DoorLockRule(TypedDict):
     This class defines the different locking rules.
     """
 
-    type: Literal["keep_lock", "keep_unlock", "custom", "reset", "lock_early"]
+    type: Literal["keep_lock", "keep_unlock", "custom", "reset", "lock_early", "lock_now"]
     interval: int
 
 
@@ -256,6 +256,13 @@ class UnifiAccessHub:
         self._make_http_request(
             f"{self.host}{DOOR_UNLOCK_URL}".format(door_id=door_id), "PUT"
         )
+
+    def lock_door(self, door_id: str) -> None:
+        """Test if we can authenticate with the host."""
+        _LOGGER.info("Locking door with id %s", door_id)
+        new_door_lock_rule = {"type": "lock_now"}
+        self.set_door_lock_rule(door_id, new_door_lock_rule)
+
 
     def _make_http_request(self, url, method="GET", data=None) -> dict:
         """Make HTTP request to Unifi Access API server."""

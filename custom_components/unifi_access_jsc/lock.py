@@ -80,7 +80,7 @@ class UnifiDoorLockEntity(CoordinatorEntity, LockEntity):
 
     def lock(self, **kwargs: Any) -> None:
         """Lock all or specified locks. A code to lock the lock with may optionally be specified."""
-        _LOGGER.warning("Locking is not supported by Unifi Access API")
+        await self.hass.async_add_executor_job(self.door.lock)
 
     @property
     def is_locked(self) -> bool | None:

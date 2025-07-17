@@ -74,7 +74,7 @@ class UnifiAccessDoor:
     @property
     def is_locking(self):
         """Solely used for locking state when calling lock."""
-        return False
+        return self._is_locking
 
     @property
     def is_unlocking(self):
@@ -94,6 +94,16 @@ class UnifiAccessDoor:
             _LOGGER.info("Door with door ID %s is unlocked", self.id)
         else:
             _LOGGER.error("Door with door ID %s is already unlocked", self.id)
+
+    def lock(self) -> None:
+        """Lock door."""
+        if not self.is_locked:
+            self._is_locking = True
+            self._hub.lock_door(self._id)
+            self._is_locking = False
+            _LOGGER.info("Door with door ID %s is locked", self.id)
+        else:
+            _LOGGER.error("Door with door ID %s is already locked", self.id)
 
     def set_lock_rule(self, lock_rule_type) -> None:
         """Set lock rule."""
