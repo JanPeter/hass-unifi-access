@@ -27,6 +27,7 @@ from .const import (
     DOORBELL_STOP_EVENT,
     DOORS_EMERGENCY_URL,
     DOORS_URL,
+    SCHEDULE_URL,
     SCHEDULES_URL,
     STATIC_URL,
     UNIFI_ACCESS_API_PORT,
@@ -235,13 +236,24 @@ class UnifiAccessHub:
             self.doors[door_id].interval = door_lock_rule["interval"]
 
     def fetch_schedules(self) -> list[dict]:
-        """Fetch all access policy schedules."""
+        """Fetch all access policy schedules with full details."""
         _LOGGER.debug("Fetching all schedules")
         try:
-            data = self._make_http_request(f"{self.host}{SCHEDULES_URL}")
-            self._schedules = data
-            _LOGGER.debug("Fetched %d schedules", len(data))
-            return data
+            summary = self._make_http_request(f"{self.host}{SCHEDULES_URL}")
+            schedules = []
+            for s in summary:
+                try:
+                    full = self._make_http_request(
+                        f"{self.host}{SCHEDULE_URL}".format(schedule_id=s["id"])
+                    )
+                    schedules.append(full)
+                    _LOGGER.debug("Fetched schedule detail for %s: %s", s["id"], s.get("name"))
+                except (ApiError, ApiAuthError):
+                    _LOGGER.debug("Could not fetch schedule detail for %s", s["id"])
+                    schedules.append(s)
+            self._schedules = schedules
+            _LOGGER.debug("Fetched %d schedules with details", len(schedules))
+            return schedules
         except (ApiError, ApiAuthError):
             _LOGGER.debug("Could not fetch schedules")
             return []

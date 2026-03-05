@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -118,7 +119,7 @@ class TemporaryLockRuleSelectEntity(CoordinatorEntity, SelectEntity):
         self.async_write_ha_state()
 
 
-class UnlockScheduleSelectEntity(CoordinatorEntity, SelectEntity):
+class UnlockScheduleSelectEntity(CoordinatorEntity, SelectEntity, RestoreEntity):
     """Select entity to pick which schedule controls the unlock duration for a door."""
 
     _attr_translation_key = "unlock_schedule"
@@ -149,7 +150,6 @@ class UnlockScheduleSelectEntity(CoordinatorEntity, SelectEntity):
             options.append(name)
         self._attr_options = options
         if self.door.schedule_id:
-            # Find the name for the current schedule_id
             current_name = next(
                 (name for name, sid in self._schedule_map.items()
                  if sid == self.door.schedule_id),
@@ -193,11 +193,21 @@ class UnlockScheduleSelectEntity(CoordinatorEntity, SelectEntity):
                     "Set unlock schedule for door %s to %s (%s)",
                     self.door.name, option, schedule_id,
                 )
+        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
-        """Add to Home Assistant."""
+        """Add to Home Assistant and restore previous state."""
         await super().async_added_to_hass()
         self.door.register_callback(self.async_write_ha_state)
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state != NONE_SCHEDULE:
+            schedule_id = self._schedule_map.get(last_state.state)
+            if schedule_id:
+                self.door.schedule_id = schedule_id
+                _LOGGER.info(
+                    "Restored unlock schedule for door %s to %s (%s)",
+                    self.door.name, last_state.state, schedule_id,
+                )
 
     async def async_will_remove_from_hass(self) -> None:
         """Remove from Home Assistant."""
