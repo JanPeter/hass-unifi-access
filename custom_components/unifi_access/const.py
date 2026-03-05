@@ -9,6 +9,7 @@ DOOR_UNLOCK_URL = "/api/v1/developer/doors/{door_id}/unlock"
 DOOR_LOCK_RULE_URL = "/api/v1/developer/doors/{door_id}/lock_rule"
 DEVICE_NOTIFICATIONS_URL = "/api/v1/developer/devices/notifications"
 DOORS_EMERGENCY_URL = "/api/v1/developer/doors/settings/emergency"
+SCHEDULES_URL = "/api/v1/developer/access_policies/schedules"
 STATIC_URL = "/api/v1/developer/system/static"
 
 DOORBELL_EVENT = "doorbell_press"

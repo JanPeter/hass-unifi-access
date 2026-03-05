@@ -54,6 +54,9 @@
                     "lock_early": "Frühzeitig abschließen",
                     "reset": "Regel zurücksetzten"
                 }
+            },
+            "unlock_schedule": {
+                "name": "Entsperr-Zeitplan"
             }
         },
         "sensor": {

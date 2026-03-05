@@ -80,6 +80,9 @@
           "reset": "Reset rule",
           "lock_early": "Lock early"
         }
+      },
+      "unlock_schedule": {
+        "name": "Unlock Schedule"
       }
     }
   }

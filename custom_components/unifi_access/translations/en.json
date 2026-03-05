@@ -59,6 +59,9 @@
                     "lock_early": "Lock early",
                     "reset": "Reset rule"
                 }
+            },
+            "unlock_schedule": {
+                "name": "Unlock Schedule"
             }
         },
         "sensor": {

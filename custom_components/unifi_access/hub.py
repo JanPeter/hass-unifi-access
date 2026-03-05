@@ -27,6 +27,7 @@ from .const import (
     DOORBELL_STOP_EVENT,
     DOORS_EMERGENCY_URL,
     DOORS_URL,
+    SCHEDULES_URL,
     STATIC_URL,
     UNIFI_ACCESS_API_PORT,
 )
@@ -95,6 +96,7 @@ class UnifiAccessHub:
             "Connection": "Upgrade",
         }
         self._doors: dict[str, UnifiAccessDoor] = {}
+        self._schedules: list[dict] = []
         self.evacuation = False
         self.lockdown = False
         self.supports_door_lock_rules = True
@@ -122,6 +124,7 @@ class UnifiAccessHub:
             self.doors.keys(),
         )
         data = self._make_http_request(f"{self.host}{DOORS_URL}")
+        self.fetch_schedules()
 
         for _i, door in enumerate(data):
             if door["is_bind_hub"] is True:
@@ -230,6 +233,72 @@ class UnifiAccessHub:
         self.doors[door_id].lock_rule = door_lock_rule["type"]
         if door_lock_rule["type"] == "custom":
             self.doors[door_id].interval = door_lock_rule["interval"]
+
+    def fetch_schedules(self) -> list[dict]:
+        """Fetch all access policy schedules."""
+        _LOGGER.debug("Fetching all schedules")
+        try:
+            data = self._make_http_request(f"{self.host}{SCHEDULES_URL}")
+            self._schedules = data
+            _LOGGER.debug("Fetched %d schedules", len(data))
+            return data
+        except (ApiError, ApiAuthError):
+            _LOGGER.debug("Could not fetch schedules")
+            return []
+
+    @property
+    def schedules(self) -> list[dict]:
+        """Get cached schedules."""
+        return self._schedules
+
+    def get_schedule_unlock_minutes(self, schedule_id: str) -> int | None:
+        """Calculate minutes until the end of today's first unlock period for a schedule.
+
+        Returns the number of minutes until the schedule's unlock period ends,
+        or None if no matching period is found for today.
+        """
+        schedule = next(
+            (s for s in self._schedules if s["id"] == schedule_id), None
+        )
+        if schedule is None:
+            _LOGGER.warning("Schedule %s not found", schedule_id)
+            return None
+
+        weekly = schedule.get("weekly", {})
+        day_names = [
+            "monday", "tuesday", "wednesday", "thursday",
+            "friday", "saturday", "sunday",
+        ]
+        now = datetime.now()
+        today_name = day_names[now.weekday()]
+        periods = weekly.get(today_name, [])
+
+        if not periods:
+            _LOGGER.debug("No schedule periods for %s", today_name)
+            return None
+
+        # Find the first period whose end_time hasn't passed yet
+        for period in periods:
+            end_time_str = period.get("end_time", "")
+            if not end_time_str:
+                continue
+            end_parts = end_time_str.split(":")
+            end_time = now.replace(
+                hour=int(end_parts[0]),
+                minute=int(end_parts[1]),
+                second=int(end_parts[2]) if len(end_parts) > 2 else 0,
+                microsecond=0,
+            )
+            if end_time > now:
+                minutes = int((end_time - now).total_seconds() / 60)
+                _LOGGER.info(
+                    "Schedule %s: %d minutes until end of unlock period (%s)",
+                    schedule_id, minutes, end_time_str,
+                )
+                return max(minutes, 1)
+
+        _LOGGER.debug("All schedule periods for today have ended")
+        return None
 
     def get_doors_emergency_status(self) -> EmergencyData:
         """Get doors emergency status."""

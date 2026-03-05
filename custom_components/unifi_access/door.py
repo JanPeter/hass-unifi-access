@@ -37,6 +37,7 @@ class UnifiAccessDoor:
         self.lock_rule = door_lock_rule
         self.lock_rule_interval = 10
         self.lock_rule_ended_time = door_lock_rule_ended_time
+        self.schedule_id: str | None = None
         self.thumbnail = (
             b"\x89PNG\r\n\x1a\n"
             b"\x00\x00\x00\rIHDR\x00\x00\x00\x01"
@@ -82,21 +83,40 @@ class UnifiAccessDoor:
         return self._is_unlocking
 
     def open(self) -> None:
-        """Open door."""
-        self.unlock()
+        """Open door with a momentary remote unlock (buzzes the door briefly)."""
+        self._hub.unlock_door(self._id)
 
     def unlock(self) -> None:
-        """Unlock door."""
+        """Unlock door until the schedule's unlock period ends.
+
+        Uses the configured schedule to calculate minutes until the end of
+        today's first unlock period, then sets a custom unlock duration.
+        Falls back to keep_unlock if no schedule is configured or found.
+        """
         if self.is_locked:
             self._is_unlocking = True
-            self._hub.unlock_door(self._id)
+            minutes = None
+            if self.schedule_id:
+                minutes = self._hub.get_schedule_unlock_minutes(self.schedule_id)
+            if minutes is not None:
+                self._hub.set_door_lock_rule(
+                    self._id, {"type": "custom", "interval": minutes}
+                )
+                _LOGGER.info(
+                    "Door %s unlocked for %d minutes (schedule %s)",
+                    self.id, minutes, self.schedule_id,
+                )
+            else:
+                self._hub.set_door_lock_rule(self._id, {"type": "keep_unlock"})
+                _LOGGER.warning(
+                    "Door %s: no schedule found, using keep_unlock", self.id,
+                )
             self._is_unlocking = False
-            _LOGGER.info("Door with door ID %s is unlocked", self.id)
         else:
             _LOGGER.error("Door with door ID %s is already unlocked", self.id)
 
     def lock(self) -> None:
-        """Lock door."""
+        """Lock door by resetting to schedule state."""
         if not self.is_locked:
             self._is_locking = True
             self._hub.lock_door(self._id)

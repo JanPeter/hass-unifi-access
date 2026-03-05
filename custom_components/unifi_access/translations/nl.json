@@ -54,6 +54,9 @@
                     "lock_early": "Sluit vroeg",
                     "reset": "Regel opnieuw instellen"
                 }
+            },
+            "unlock_schedule": {
+                "name": "Ontgrendel Schema"
             }
         },
         "sensor": {
