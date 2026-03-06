@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from homeassistant.components.lock import LockEntity, LockEntityFeature
@@ -43,6 +44,8 @@ class UnifiDoorLockEntity(CoordinatorEntity, LockEntity):
     _attr_has_entity_name = True
     _attr_name = None
 
+    _suppress_updates_until: float = 0
+
     def __init__(self, coordinator, door_id) -> None:
         """Initialize Unifi Access Door Lock."""
         super().__init__(coordinator, context=id)
@@ -60,18 +63,25 @@ class UnifiDoorLockEntity(CoordinatorEntity, LockEntity):
             manufacturer="Unifi",
         )
 
+    def _on_door_update(self) -> None:
+        """Handle door updates, suppressing during optimistic window."""
+        if time.monotonic() < self._suppress_updates_until:
+            return
+        self.async_write_ha_state()
+
     async def async_added_to_hass(self) -> None:
         """Add Unifi Access Door Lock to Home Assistant."""
         await super().async_added_to_hass()
-        self.door.register_callback(self.async_write_ha_state)
+        self.door.register_callback(self._on_door_update)
 
     async def async_will_remove_from_hass(self) -> None:
         """Remove Unifi Access Door Lock from Home Assistant."""
         await super().async_will_remove_from_hass()
-        self.door.remove_callback(self.async_write_ha_state)
+        self.door.remove_callback(self._on_door_update)
 
     async def async_unlock(self, **kwargs: Any) -> None:
         """Unlock all or specified locks. A code to unlock the lock with may optionally be specified."""
+        self._suppress_updates_until = time.monotonic() + 5
         await self.hass.async_add_executor_job(self.door.unlock)
         self.async_write_ha_state()
 
@@ -81,6 +91,7 @@ class UnifiDoorLockEntity(CoordinatorEntity, LockEntity):
 
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock all or specified locks. A code to lock the lock with may optionally be specified."""
+        self._suppress_updates_until = time.monotonic() + 5
         await self.hass.async_add_executor_job(self.door.lock)
         self.async_write_ha_state()
 
@@ -101,6 +112,8 @@ class UnifiDoorLockEntity(CoordinatorEntity, LockEntity):
 
     def _handle_coordinator_update(self) -> None:
         """Handle Unifi Access Door Lock updates from coordinator."""
+        if time.monotonic() < self._suppress_updates_until:
+            return
         self._attr_is_locked = self.door.is_locked
         self._attr_is_locking = self.door.is_locking
         self._attr_is_unlocking = self.door.is_unlocking
