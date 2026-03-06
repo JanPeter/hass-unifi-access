@@ -73,6 +73,7 @@ class UnifiDoorLockEntity(CoordinatorEntity, LockEntity):
     async def async_unlock(self, **kwargs: Any) -> None:
         """Unlock all or specified locks. A code to unlock the lock with may optionally be specified."""
         await self.hass.async_add_executor_job(self.door.unlock)
+        self.async_write_ha_state()
 
     async def async_open(self, **kwargs: Any) -> None:
         """Unlock all or specified locks. A code to unlock the lock with may optionally be specified."""
@@ -81,6 +82,7 @@ class UnifiDoorLockEntity(CoordinatorEntity, LockEntity):
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock all or specified locks. A code to lock the lock with may optionally be specified."""
         await self.hass.async_add_executor_job(self.door.lock)
+        self.async_write_ha_state()
 
     @property
     def is_locked(self) -> bool | None:

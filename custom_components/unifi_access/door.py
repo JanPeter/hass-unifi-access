@@ -111,6 +111,7 @@ class UnifiAccessDoor:
                 _LOGGER.warning(
                     "Door %s: no schedule found, using keep_unlock", self.id,
                 )
+            self.door_lock_relay_status = "unlock"
             self._is_unlocking = False
         else:
             _LOGGER.error("Door with door ID %s is already unlocked", self.id)
@@ -120,6 +121,7 @@ class UnifiAccessDoor:
         if not self.is_locked:
             self._is_locking = True
             self._hub.lock_door(self._id)
+            self.door_lock_relay_status = "lock"
             self._is_locking = False
             _LOGGER.info("Door with door ID %s is locked", self.id)
         else:
